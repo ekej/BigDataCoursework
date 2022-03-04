@@ -1,0 +1,332 @@
+
+# coding: utf-8
+
+# In[1]:
+
+
+import findspark
+findspark.init()
+
+
+# In[2]:
+
+
+from pyspark.sql import SparkSession
+#from pyspark import SparkContext
+#from pyspark.sql.functions import *
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+# In[3]:
+
+
+spark = SparkSession.builder.appName("crime").getOrCreate()
+
+
+# In[4]:
+
+
+Training a few models, evaluating their predictive performance, and determining which attributes have the greatest impact on prediction are the next and final phases of this machine learning project. Understandable machine learning is a type of machine learning that focuses on being capable of understanding the model's predictions.df = spark.read.csv("/home/justin/Downloads/Crime_Data_from_2020_to_Present.csv", header=True, inferSchema=True, ignoreLeadingWhiteSpace=True)
+
+
+# In[5]:
+
+
+df.show(10)
+
+
+# In[6]:
+
+
+df.printSchema()
+
+
+# In[7]:
+
+
+df = df.dropDuplicates()
+df.show(7)
+
+
+# In[8]:
+
+
+df.rdd.map(lambda row: (row['DR_NO'], sum([c == None for c in row]))).collect()
+
+
+# In[9]:
+
+
+df = df.select([c for c in df.columns if c != 'Cross Street'])
+df = df.select([c for c in df.columns if c != 'Crm Cd 4'])
+df = df.select([c for c in df.columns if c != 'Crm Cd 3'])
+df = df.select([c for c in df.columns if c != 'Crm Cd 2'])
+df = df.select([c for c in df.columns if c != 'Weapon Desc'])
+df = df.select([c for c in df.columns if c != 'Weapon Used Cd'])
+df.show()
+
+
+# In[10]:
+
+
+df.dropna(thresh=3).show()
+
+
+# In[ ]:
+
+
+from pyspark import SparkContext
+from pyspark.sql.functions import *
+
+
+# In[ ]:
+
+
+import missingno as msno
+msno.bar(df.toPandas())
+plt.show()
+
+
+# In[ ]:
+
+
+msno.matrix(df.toPandas())
+plt.show()
+
+
+# In[ ]:
+
+
+msno.heatmap(df.toPandas())
+plt.show()
+
+
+# In[ ]:
+
+
+msno.dendrogram(df.toPandas())
+plt.show()
+
+
+# In[ ]:
+
+
+df.describe('AREA NAME').show()
+df.describe('Vict Age').show()
+df.describe('Vict Sex').show()
+
+
+# In[ ]:
+
+
+TableDescription = df.describe()
+TableDescription.show()
+
+
+# In[ ]:
+
+
+import seaborn as sns
+s_df = df.select(['Vict Age', 'Vict Descent'])
+s_df.sample(False, 0.5, 42)
+pandas_df = s_df.toPandas()
+sns.boxplot('Vict Descent','Vict Age', data=pandas_df)
+plt.show()
+
+
+# In[ ]:
+
+
+df.columns = df.columns.string.strip()
+#Cat_sdf = df.select_dtypes(include=['object']).copy()
+
+
+# In[ ]:
+
+
+#s_df = df.select(['Vict Age', 'Vict Sex'])
+#s_df = s_df.sample([False, 0.5, 42])
+#pandas_df = s_df.toPandas()
+#sns.lmplot(x='Vict Sex',y='Vict Age', data=pandas_df)
+#plt.show()
+
+#dfplot =df.Vict Sex.value_counts().plot(kind='bar')
+#dfplot = dfplot.toPandas()
+#plt.show()
+
+
+# In[ ]:
+
+
+df = df.select('AREA NAME', 'Crm Cd Desc', 'Vict Age', 'Vict Sex', 'Premis Desc', 'Weapon Desc')
+
+
+# In[ ]:
+
+
+def histogram(df, col, bins=10, xname=None, yname=None):
+    
+    '''
+    This function makes a histogram from spark dataframe named 
+    df for column name col. 
+    '''
+    
+    # Calculating histogram in Spark 
+    vals = df.select(col).rdd.flatMap(lambda x: x).histogram(bins)
+    
+    # Preprocessing histogram points and locations 
+    width = vals[0][1] - vals[0][0]
+    loc = [vals[0][0] + (i+1) * width for i in range(len(vals[1]))]
+    
+    # Making a bar plot 
+    plt.bar(loc, vals[1], width=width)
+    plt.xlabel(col)
+    plt.ylabel(yname)
+    plt.show()
+
+
+# In[43]:
+
+
+def histogram(df, col, bins=10, xname=None, yname=None):
+    
+    '''
+    This function makes a histogram from spark dataframe named 
+    df for column name col. 
+    '''
+    
+    # Calculating histogram in Spark 
+    vals = df.select(col).rdd.flatMap(lambda x: x).histogram(bins)
+    
+    # Preprocessing histogram points and locations 
+    width = vals[0][1] - vals[0][0]
+    loc = [vals[0][0] + (i+1) * width for i in range(len(vals[1]))]
+    
+    # Making a bar plot 
+    plt.bar(loc, vals[1], width=width)
+    plt.xlabel(col)
+    plt.ylabel(yname)
+    plt.show()
+
+
+# In[12]:
+
+
+df.groupby('Vict Sex').count().show()
+
+
+# In[13]:
+
+
+import seaborn as sns
+
+
+# In[14]:
+
+
+s_df = df.select(['Vict Age', 'Vict Descent'])
+s_df.sample(False, 0.5, 42)
+pandas_df = s_df.toPandas()
+sns.boxplot('Vict Descent','Vict Age', data=pandas_df)
+plt.show()
+
+
+# In[15]:
+
+
+df.describe(["Vict Age"]).show()
+
+
+# In[16]:
+
+
+df2=df.select("Vict Age", "Vict Sex", "Vict Descent", "Crm Cd Desc", "LAT", "LON")
+
+
+# In[18]:
+
+
+df3=df2.groupBy("Crm Cd Desc").count()
+
+
+# In[35]:
+
+
+df3.show(100)
+
+
+# In[22]:
+
+
+from pyspark.sql import *
+from pyspark.sql import functions as func
+
+
+# In[27]:
+
+
+try:
+    df=df3.toPandas()
+    plt.figure(figsize =(20,21))
+    sns.barplot(x = 'count', y='Crm Cd Desc',data = df)
+    plt.title('Crime Record Counts')
+    plt.xlim(0,400)
+    plt.show()
+except Exception as e:
+    logger.error(e)
+
+
+# In[28]:
+
+
+dfvict=df2.groupBy("Vict Descent").count()
+
+
+# In[30]:
+
+
+dfvict.show()
+
+
+# In[32]:
+
+
+try:
+    df=dfvict.toPandas()
+    plt.figure(figsize =(11,12))
+    sns.barplot(x = 'count', y='Vict Descent',data = df)
+    plt.title('Victims Race')
+    plt.xlim(0,400)
+    plt.show()
+except Exception as e:
+    logger.error(e)
+
+
+# In[36]:
+
+
+dfage=df2.groupBy("Vict Age").count()
+
+
+# In[37]:
+
+
+dfage.show()
+
+
+# In[41]:
+
+
+try:
+    df=dfage.toPandas()
+    plt.figure(figsize =(10,11))
+    sns.barplot(x = 'count', y='Vict Age',data = df)
+    plt.title('Victims Age Count')
+    plt.xlim(0,400)
+    plt.show()
+except Exception as e:
+    logger.error(e)
+
+
